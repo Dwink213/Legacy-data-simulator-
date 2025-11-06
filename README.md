@@ -15,6 +15,218 @@ A portfolio project demonstrating full-stack API transformation, data masking, a
                                                       (AI Insights)
 ```
 
+## Process Flow
+
+```mermaid
+flowchart TB
+    Start([User Opens Application]) --> Input[Enter Customer ID]
+    Input --> Click[Click 'Get Transactions']
+
+    Click --> FetchRaw[Frontend: Fetch Raw Data<br/>GET /api/transactions/:id/raw]
+    Click --> FetchMasked[Frontend: Fetch Masked Data<br/>GET /api/transactions/:id]
+
+    subgraph Frontend["React Frontend (Port 3000)"]
+        FetchRaw
+        FetchMasked
+        Display[Display All Four Panels]
+    end
+
+    FetchRaw --> GW1[REST Gateway Receives Request]
+    FetchMasked --> GW2[REST Gateway Receives Request]
+
+    subgraph Gateway["REST API Gateway (Port 5001)"]
+        GW1 --> Log1[Log Request]
+        GW2 --> Log2[Log Request]
+
+        Log1 --> BuildSOAP1[Build SOAP Request XML]
+        Log2 --> BuildSOAP2[Build SOAP Request XML]
+
+        BuildSOAP1 --> CallSOAP1[Call SOAP Service]
+        BuildSOAP2 --> CallSOAP2[Call SOAP Service]
+
+        CallSOAP1 --> Parse1[Parse SOAP XML Response]
+        CallSOAP2 --> Parse2[Parse SOAP XML Response]
+
+        Parse1 --> Convert1[Convert XML to JSON]
+        Parse2 --> Convert2[Convert XML to JSON]
+
+        Convert2 --> Mask[Apply PII Masking]
+
+        Mask --> MaskName[Mask Customer Name<br/>John Smith → J*** S***]
+        MaskName --> MaskAccount[Mask Account Number<br/>123456789012 → ****9012]
+        MaskAccount --> MaskEmail[Mask Email<br/>john@email.com → j***@email.com]
+        MaskEmail --> MaskPhone[Mask Phone<br/>+1-555-123-4567 → ***-***-4567]
+
+        Convert1 --> Return1[Return Unmasked JSON + XML]
+        MaskPhone --> Return2[Return Masked JSON]
+    end
+
+    subgraph SOAP["SOAP Service (Port 5000)"]
+        CallSOAP1 --> Generate1[Generate Customer Data]
+        CallSOAP2 --> Generate2[Generate Customer Data]
+
+        Generate1 --> DataGen1[Data Generator:<br/>Create Realistic Transactions]
+        Generate2 --> DataGen2[Data Generator:<br/>Create Realistic Transactions]
+
+        DataGen1 --> XMLResp1[Build SOAP XML Envelope]
+        DataGen2 --> XMLResp2[Build SOAP XML Envelope]
+
+        XMLResp1 --> SOAPReturn1[Return SOAP Response]
+        XMLResp2 --> SOAPReturn2[Return SOAP Response]
+    end
+
+    SOAPReturn1 --> Parse1
+    SOAPReturn2 --> Parse2
+
+    Return1 --> Panel1[Panel 1: Display Raw SOAP XML]
+    Return1 --> Panel2[Panel 2: Display Converted JSON]
+    Return2 --> Panel3[Panel 3: Display Masked Data]
+
+    Return2 --> CallAI[Frontend: Request AI Insights<br/>POST /api/insights]
+
+    CallAI --> GW3[REST Gateway Receives Request]
+
+    subgraph AIFlow["AI Insights Flow"]
+        GW3 --> PrepareData[Prepare Transaction Summary]
+        PrepareData --> BuildPrompt[Build Analysis Prompt]
+        BuildPrompt --> CallClaude[Call Claude API]
+
+        CallClaude --> Claude{Claude API<br/>Available?}
+
+        Claude -->|Yes| Analyze[Claude Analyzes Transactions]
+        Claude -->|No| ErrorMsg[Return Error Message]
+
+        Analyze --> ParseInsights[Parse AI Response]
+        ParseInsights --> ExtractRecs[Extract Recommendations]
+        ExtractRecs --> CalcMetrics[Calculate Metrics]
+        CalcMetrics --> ReturnInsights[Return Structured Insights]
+
+        ErrorMsg --> ReturnError[Return Error with Setup Info]
+    end
+
+    ReturnInsights --> Panel4[Panel 4: Display AI Insights]
+    ReturnError --> Panel4
+
+    Panel1 --> Display
+    Panel2 --> Display
+    Panel3 --> Display
+    Panel4 --> Display
+
+    Display --> End([User Views All Data])
+
+    style Frontend fill:#e1f5ff
+    style Gateway fill:#fff4e1
+    style SOAP fill:#ffe1f5
+    style AIFlow fill:#e1ffe1
+    style Mask fill:#ffcccc
+    style MaskName fill:#ffdddd
+    style MaskAccount fill:#ffdddd
+    style MaskEmail fill:#ffdddd
+    style MaskPhone fill:#ffdddd
+    style Panel1 fill:#d4edff
+    style Panel2 fill:#d4edff
+    style Panel3 fill:#ffd4d4
+    style Panel4 fill:#d4ffd4
+```
+
+### Flow Highlights
+
+**1. Data Retrieval** (Steps 1-3)
+- User enters customer ID (1-100)
+- Frontend makes parallel requests for raw and masked data
+- REST Gateway logs all incoming requests
+
+**2. SOAP Transformation** (Steps 4-6)
+- Gateway builds SOAP XML request envelope
+- Calls legacy SOAP service with customer ID
+- SOAP service generates realistic transaction data
+
+**3. XML to JSON Conversion** (Steps 7-8)
+- Gateway parses SOAP XML response
+- Converts XML structure to modern JSON format
+- Preserves all data for comparison
+
+**4. PII Masking** (Steps 9-12)
+- Customer names → First letter + ***
+- Account numbers → Last 4 digits only (****9012)
+- Email addresses → First letter + ***@domain
+- Phone numbers → Last 4 digits (***-***-4567)
+
+**5. AI Insights Generation** (Steps 13-16)
+- Frontend sends masked data to insights endpoint
+- Gateway prepares transaction summary for Claude
+- Claude API analyzes spending patterns
+- Returns structured insights and recommendations
+
+**6. Display** (Steps 17-20)
+- **Panel 1**: Raw SOAP XML (shows legacy format)
+- **Panel 2**: Converted JSON (demonstrates transformation)
+- **Panel 3**: Masked JSON (highlights security measures)
+- **Panel 4**: AI Insights (shows value-add analysis)
+
+### Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Frontend as React Frontend<br/>(Port 3000)
+    participant Gateway as REST Gateway<br/>(Port 5001)
+    participant SOAP as SOAP Service<br/>(Port 5000)
+    participant DataGen as Data Generator
+    participant Masker as PII Masker
+    participant Claude as Claude API
+
+    User->>Frontend: Enter Customer ID & Click
+
+    par Parallel Requests
+        Frontend->>Gateway: GET /api/transactions/42/raw
+        and
+        Frontend->>Gateway: GET /api/transactions/42
+    end
+
+    Note over Gateway: Log incoming requests
+
+    Gateway->>SOAP: POST /soap<br/>(SOAP XML Request)
+    SOAP->>DataGen: Generate customer 42 data
+    DataGen-->>SOAP: Customer + Transactions
+    SOAP-->>Gateway: SOAP XML Response
+
+    Gateway->>Gateway: Parse XML to JSON
+
+    Note over Gateway,Masker: Path 1: Return Raw Data
+    Gateway-->>Frontend: Raw SOAP XML + JSON
+
+    Frontend->>Frontend: Display Panel 1 (SOAP XML)
+    Frontend->>Frontend: Display Panel 2 (JSON)
+
+    Note over Gateway,Masker: Path 2: Mask & Return
+    Gateway->>Masker: Apply PII Masking
+    Masker->>Masker: Mask names, accounts,<br/>emails, phones
+    Masker-->>Gateway: Masked JSON
+    Gateway-->>Frontend: Masked Data
+
+    Frontend->>Frontend: Display Panel 3 (Masked)
+
+    Frontend->>Gateway: POST /api/insights<br/>(Masked Data)
+    Gateway->>Gateway: Prepare transaction summary
+    Gateway->>Claude: Analyze spending patterns
+
+    alt Claude API Available
+        Claude->>Claude: Analyze transactions<br/>Generate insights
+        Claude-->>Gateway: AI Analysis + Recommendations
+        Gateway->>Gateway: Parse & structure insights
+        Gateway-->>Frontend: Structured Insights
+        Frontend->>Frontend: Display Panel 4 (AI Insights)
+    else Claude API Not Configured
+        Gateway-->>Frontend: Error: API Key Required
+        Frontend->>Frontend: Display Panel 4 (Error Message)
+    end
+
+    Frontend-->>User: Show All Four Panels
+
+    Note over User,Claude: Complete SOAP-to-REST transformation<br/>with security and AI enhancement
+```
+
 ## Features
 
 ### 1. Mock SOAP Service
