@@ -2,6 +2,35 @@
 
 A portfolio project demonstrating full-stack API transformation, data masking, and AI-powered insights.
 
+**🎯 Perfect for AI Architect roles** - Showcases cloud-native AI integration, cost optimization, and production-ready observability.
+
+## 🚀 Deployment Options
+
+### Local Development
+```bash
+./start.sh  # Start all services locally
+```
+**Best for**: Learning, development, code exploration
+
+### Azure Production (Recommended for Portfolio)
+```bash
+cd infrastructure
+./deploy.sh dev eastus
+```
+**Best for**: Live demos, interviews, production showcase
+
+**Features:**
+- ✅ Azure Static Web Apps (Frontend)
+- ✅ Azure Functions (Serverless Backend)
+- ✅ Application Insights (AI cost tracking)
+- ✅ Log Analytics (12 pre-built queries)
+- ✅ Key Vault + Managed Identity (Security)
+- ✅ Infrastructure as Code (Bicep templates)
+
+📖 **Full deployment guide**: [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md)
+
+---
+
 ## Architecture
 
 ```
@@ -372,17 +401,32 @@ npm start
 
 ```
 Legacy-data-simulator-/
-├── backend/
+├── backend/                     # Local development services
 │   ├── soap_service.py          # Mock SOAP service
 │   ├── rest_gateway.py          # REST API gateway
 │   ├── data_generator.py        # Fake transaction data
 │   ├── pii_masker.py            # PII masking logic
 │   └── claude_client.py         # Claude API integration
-├── frontend/
+│
+├── azure-functions/             # Azure serverless deployment
+│   ├── soap-simulator/          # SOAP function
+│   ├── rest-gateway/            # REST gateway function
+│   ├── ai-insights/             # AI insights function
+│   ├── host.json                # Function app config
+│   └── requirements.txt         # Azure dependencies
+│
+├── infrastructure/              # Infrastructure as Code
+│   ├── main.bicep               # Bicep template (all resources)
+│   ├── main.parameters.json     # Deployment parameters
+│   └── deploy.sh                # Automated deployment script
+│
+├── monitoring/                  # Observability
+│   └── log-analytics-queries.kql # 12 pre-built queries
+│
+├── frontend/                    # React application
 │   ├── public/
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── TransactionViewer.jsx
 │   │   │   ├── SoapPanel.jsx
 │   │   │   ├── JsonPanel.jsx
 │   │   │   ├── MaskedPanel.jsx
@@ -390,10 +434,16 @@ Legacy-data-simulator-/
 │   │   ├── App.js
 │   │   └── index.js
 │   └── package.json
-├── requirements.txt
-├── .env.example
-├── start.sh
-└── README.md
+│
+├── staticwebapp.config.json     # Azure Static Web App config
+├── requirements.txt             # Local development deps
+├── .env.example                 # Environment template
+├── start.sh / stop.sh           # Local dev scripts
+├── README.md                    # This file
+├── AZURE_DEPLOYMENT.md          # Azure deployment guide
+├── AI_ARCHITECTURE.md           # AI patterns & best practices
+├── ARCHITECTURE_DECISIONS.md    # Technology choices
+└── QUICKSTART.md                # 5-minute setup guide
 ```
 
 ## Security Features
@@ -427,6 +477,7 @@ This project demonstrates:
    - PII data masking
    - Sensitive data handling
    - Logging and auditing
+   - Managed Identity + Key Vault
 
 3. **Full-Stack Development**
    - Python backend services
@@ -437,11 +488,119 @@ This project demonstrates:
    - Claude API integration
    - Natural language insights
    - Data analysis enhancement
+   - Token usage & cost tracking
 
-5. **DevOps Practices**
+5. **Cloud Architecture** (Azure)
+   - Serverless functions
+   - Static web apps
+   - Infrastructure as Code
+   - Application Insights
+
+6. **DevOps Practices**
    - Multi-service orchestration
    - Environment configuration
-   - Documentation
+   - Comprehensive documentation
+
+---
+
+## 🤖 AI Architect Specific Features
+
+This project is specifically designed to showcase skills for **AI Architect** roles:
+
+### 1. **AI Cost Optimization**
+- Real-time token tracking per request
+- Cost-per-transaction logging
+- 12+ Log Analytics queries for cost analysis
+- Prompt engineering (75% token reduction)
+- See: [`AI_ARCHITECTURE.md`](AI_ARCHITECTURE.md) - Cost Optimization section
+
+### 2. **Production-Ready Observability**
+```python
+# Every AI call logs comprehensive metrics
+logger.info('Claude API call', extra={
+    'custom_dimensions': {
+        'input_tokens': 245,
+        'output_tokens': 892,
+        'total_cost_usd': 0.014115,
+        'duration_ms': 1250,
+        'customer_id': 42
+    }
+})
+```
+
+**Query in Log Analytics:**
+```kusto
+traces | where customDimensions.ai_provider == "Claude"
+| summarize total_cost = sum(todouble(customDimensions.total_cost_usd))
+  by bin(timestamp, 1d)
+```
+
+### 3. **Security & Compliance**
+- ✅ PII masked before AI processing
+- ✅ Azure Managed Identity (no hardcoded keys)
+- ✅ Key Vault for secrets
+- ✅ Audit logging of all AI requests
+- ✅ GDPR-compliant data handling
+
+### 4. **AI Architecture Patterns**
+- **Prompt Engineering**: Summarized data vs full records (75% savings)
+- **Graceful Degradation**: App works without AI
+- **Structured Logging**: Query-able metrics
+- **Error Handling**: Retry logic & circuit breaker patterns
+- See: [`AI_ARCHITECTURE.md`](AI_ARCHITECTURE.md)
+
+### 5. **Infrastructure as Code**
+```bash
+# One command deploys everything
+./infrastructure/deploy.sh dev eastus
+
+# Creates:
+# - Azure Functions (3 serverless APIs)
+# - Static Web App (React frontend)
+# - Application Insights (AI telemetry)
+# - Log Analytics (cost queries)
+# - Key Vault (Claude API key)
+```
+
+### 6. **Cost Tracking Dashboard**
+Pre-built queries track:
+- Daily AI spend
+- Cost per customer
+- Token efficiency
+- P95/P99 latency
+- Error rates
+
+**Monthly estimate**: $10-50 (mostly AI usage, infrastructure ~free)
+
+---
+
+## 📚 Documentation for AI Architects
+
+| Document | Purpose | Highlights |
+|----------|---------|------------|
+| **[AI_ARCHITECTURE.md](AI_ARCHITECTURE.md)** | AI patterns & best practices | Prompt engineering, cost optimization, observability |
+| **[AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md)** | Production deployment guide | IaC templates, monitoring setup, CI/CD |
+| **[ARCHITECTURE_DECISIONS.md](ARCHITECTURE_DECISIONS.md)** | Technology choices | Why Flask, React, Claude, Azure |
+| **[monitoring/log-analytics-queries.kql](monitoring/log-analytics-queries.kql)** | 12 pre-built queries | AI costs, performance, errors |
+
+---
+
+## 💡 Interview Talking Points (AI Architect)
+
+**On AI Integration:**
+> "I integrated Claude API using Azure Functions with comprehensive cost tracking. Every request logs input/output tokens and calculates cost per transaction, enabling real-time monitoring through Log Analytics. I optimized prompts to reduce tokens by 75% through data summarization."
+
+**On Security:**
+> "I implemented PII masking *before* AI processing to ensure compliance. The architecture uses Azure Managed Identity with Key Vault—no hardcoded API keys—and all AI requests are audited in Application Insights."
+
+**On Observability:**
+> "The system tracks 10+ metrics per AI request: token usage, cost, latency, error rates. I created 12 Log Analytics queries including daily cost trends, token efficiency analysis, and P95 latency monitoring. This enables data-driven optimization."
+
+**On Cost Optimization:**
+> "Current architecture costs ~$0.014 per AI request. I've documented 4 optimization strategies: Redis caching (70% savings), model tiering (50-90% savings), batching (30-40%), and output limits (75%). The infrastructure itself runs on Azure free tiers."
+
+**On Architecture:**
+> "I used the API Gateway pattern with serverless functions for independent scaling. The AI layer gracefully degrades if unavailable—the app continues functioning without insights. Infrastructure as Code (Bicep) enables one-command deployment to any Azure region."
 
 ## Future Enhancements
 

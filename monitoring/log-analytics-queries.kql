@@ -1,0 +1,274 @@
+// ============================================================================
+// Log Analytics Queries for SOAP-to-REST Transaction Viewer
+// AI Architect Portfolio Project
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// 1. SOAP to REST Transformation Performance
+// ----------------------------------------------------------------------------
+// Query: Average transformation time by function
+// Use case: Monitor API performance and identify bottlenecks
+
+traces
+| where customDimensions.function in ("soap-simulator", "rest-gateway", "ai-insights")
+| where customDimensions.duration_ms != ""
+| extend duration = todouble(customDimensions.duration_ms)
+| summarize
+    avg_duration = avg(duration),
+    p50_duration = percentile(duration, 50),
+    p95_duration = percentile(duration, 95),
+    p99_duration = percentile(duration, 99),
+    request_count = count()
+    by function_name = tostring(customDimensions.function)
+| project function_name, avg_duration, p50_duration, p95_duration, p99_duration, request_count
+| order by avg_duration desc
+
+// ----------------------------------------------------------------------------
+// 2. AI Token Usage and Cost Tracking
+// ----------------------------------------------------------------------------
+// Query: Track Claude API usage and costs
+// Use case: Monitor AI spend and optimize token usage
+
+traces
+| where customDimensions.ai_provider == "Claude"
+| where customDimensions.total_tokens != ""
+| extend
+    input_tokens = toint(customDimensions.input_tokens),
+    output_tokens = toint(customDimensions.output_tokens),
+    total_tokens = toint(customDimensions.total_tokens),
+    cost_usd = todouble(customDimensions.total_cost_usd),
+    customer_id = toint(customDimensions.customer_id)
+| summarize
+    total_requests = count(),
+    total_tokens_used = sum(total_tokens),
+    total_cost = sum(cost_usd),
+    avg_tokens_per_request = avg(total_tokens),
+    avg_cost_per_request = avg(cost_usd)
+    by bin(timestamp, 1h)
+| project
+    timestamp,
+    total_requests,
+    total_tokens_used,
+    total_cost_usd = round(total_cost, 4),
+    avg_tokens_per_request = round(avg_tokens_per_request, 0),
+    avg_cost_per_request = round(avg_cost_per_request, 6)
+| order by timestamp desc
+
+// ----------------------------------------------------------------------------
+// 3. PII Masking Operations
+// ----------------------------------------------------------------------------
+// Query: Track PII masking effectiveness
+// Use case: Ensure security measures are working
+
+traces
+| where customDimensions.function == "rest-gateway"
+| where customDimensions.pii_fields_masked != ""
+| extend
+    customer_id = toint(customDimensions.customer_id),
+    fields_masked = toint(customDimensions.pii_fields_masked),
+    mask_duration = todouble(customDimensions.mask_duration_ms)
+| summarize
+    total_operations = count(),
+    avg_mask_duration = avg(mask_duration),
+    total_fields_masked = sum(fields_masked)
+    by bin(timestamp, 1h)
+| project timestamp, total_operations, avg_mask_duration, total_fields_masked
+| order by timestamp desc
+
+// ----------------------------------------------------------------------------
+// 4. End-to-End Request Flow
+// ----------------------------------------------------------------------------
+// Query: Trace a single request through all services
+// Use case: Debug issues and understand request flow
+
+traces
+| where customDimensions.customer_id == "42"  // Change customer ID as needed
+| extend
+    function_name = tostring(customDimensions.function),
+    duration = todouble(customDimensions.duration_ms),
+    status = tostring(customDimensions.status)
+| project
+    timestamp,
+    function_name,
+    duration,
+    status,
+    message,
+    customDimensions
+| order by timestamp asc
+
+// ----------------------------------------------------------------------------
+// 5. Error Tracking and Analysis
+// ----------------------------------------------------------------------------
+// Query: Monitor errors and failures
+// Use case: Identify and fix issues quickly
+
+traces
+| where customDimensions.status == "error" or severityLevel >= 3
+| extend
+    function_name = tostring(customDimensions.function),
+    error_type = tostring(customDimensions.error_type),
+    error_message = tostring(customDimensions.error_message)
+| summarize
+    error_count = count(),
+    affected_customers = dcount(customDimensions.customer_id),
+    sample_message = any(error_message)
+    by function_name, error_type, bin(timestamp, 1h)
+| order by error_count desc
+
+// ----------------------------------------------------------------------------
+// 6. SOAP Call Performance
+// ----------------------------------------------------------------------------
+// Query: Monitor SOAP service performance
+// Use case: Track legacy system response times
+
+traces
+| where customDimensions.function == "soap-simulator"
+| extend
+    response_size = toint(customDimensions.response_size_bytes),
+    duration = todouble(customDimensions.duration_ms)
+| summarize
+    avg_response_size_kb = avg(response_size) / 1024,
+    avg_duration = avg(duration),
+    p95_duration = percentile(duration, 95),
+    request_count = count()
+    by bin(timestamp, 5m)
+| project timestamp, avg_response_size_kb, avg_duration, p95_duration, request_count
+| order by timestamp desc
+
+// ----------------------------------------------------------------------------
+// 7. Transformation Pipeline Breakdown
+// ----------------------------------------------------------------------------
+// Query: Break down transformation steps
+// Use case: Identify bottlenecks in the pipeline
+
+traces
+| where customDimensions.function == "rest-gateway"
+| extend
+    soap_duration = todouble(customDimensions.soap_call_duration_ms),
+    parse_duration = todouble(customDimensions.parse_duration_ms),
+    mask_duration = todouble(customDimensions.mask_duration_ms),
+    total_duration = todouble(customDimensions.total_duration_ms)
+| summarize
+    avg_soap = avg(soap_duration),
+    avg_parse = avg(parse_duration),
+    avg_mask = avg(mask_duration),
+    avg_total = avg(total_duration)
+| project
+    avg_soap_call_ms = round(avg_soap, 2),
+    avg_parse_ms = round(avg_parse, 2),
+    avg_mask_ms = round(avg_mask, 2),
+    avg_total_ms = round(avg_total, 2),
+    soap_percentage = round(avg_soap / avg_total * 100, 1),
+    parse_percentage = round(avg_parse / avg_total * 100, 1),
+    mask_percentage = round(avg_mask / avg_total * 100, 1)
+
+// ----------------------------------------------------------------------------
+// 8. AI Model Performance by Customer
+// ----------------------------------------------------------------------------
+// Query: Compare AI performance across customers
+// Use case: Optimize prompts and identify patterns
+
+traces
+| where customDimensions.ai_provider == "Claude"
+| extend
+    customer_id = toint(customDimensions.customer_id),
+    transaction_count = toint(customDimensions.transaction_count),
+    total_tokens = toint(customDimensions.total_tokens),
+    cost = todouble(customDimensions.total_cost_usd),
+    duration = todouble(customDimensions.duration_ms)
+| summarize
+    avg_tokens = avg(total_tokens),
+    avg_cost = avg(cost),
+    avg_duration = avg(duration),
+    requests = count()
+    by customer_id
+| order by avg_cost desc
+
+// ----------------------------------------------------------------------------
+// 9. Daily Cost Summary
+// ----------------------------------------------------------------------------
+// Query: Daily AI cost aggregation
+// Use case: Budget tracking and reporting
+
+traces
+| where customDimensions.ai_provider == "Claude"
+| extend
+    cost = todouble(customDimensions.total_cost_usd),
+    input_tokens = toint(customDimensions.input_tokens),
+    output_tokens = toint(customDimensions.output_tokens)
+| summarize
+    total_requests = count(),
+    total_cost = sum(cost),
+    total_input_tokens = sum(input_tokens),
+    total_output_tokens = sum(output_tokens),
+    avg_cost_per_request = avg(cost)
+    by bin(timestamp, 1d)
+| project
+    date = format_datetime(timestamp, 'yyyy-MM-dd'),
+    total_requests,
+    total_cost_usd = round(total_cost, 2),
+    total_input_tokens,
+    total_output_tokens,
+    avg_cost_per_request = round(avg_cost_per_request, 6)
+| order by date desc
+
+// ----------------------------------------------------------------------------
+// 10. Health Check Dashboard
+// ----------------------------------------------------------------------------
+// Query: Overall system health
+// Use case: Real-time monitoring dashboard
+
+traces
+| where timestamp > ago(1h)
+| extend function_name = tostring(customDimensions.function)
+| summarize
+    total_requests = count(),
+    success_count = countif(customDimensions.status == "success"),
+    error_count = countif(customDimensions.status == "error"),
+    avg_duration = avg(todouble(customDimensions.duration_ms))
+    by function_name
+| extend success_rate = round(todouble(success_count) / total_requests * 100, 2)
+| project
+    function_name,
+    total_requests,
+    success_rate,
+    error_count,
+    avg_duration_ms = round(avg_duration, 2)
+| order by total_requests desc
+
+// ----------------------------------------------------------------------------
+// 11. Token Efficiency Analysis
+// ----------------------------------------------------------------------------
+// Query: Analyze token usage efficiency
+// Use case: Optimize prompts to reduce costs
+
+traces
+| where customDimensions.ai_provider == "Claude"
+| extend
+    transaction_count = toint(customDimensions.transaction_count),
+    total_tokens = toint(customDimensions.total_tokens),
+    cost = todouble(customDimensions.total_cost_usd)
+| summarize
+    avg_tokens_per_transaction = avg(todouble(total_tokens) / transaction_count),
+    avg_cost_per_transaction = avg(cost / transaction_count),
+    samples = count()
+    by transaction_count
+| order by transaction_count asc
+
+// ----------------------------------------------------------------------------
+// 12. Customer Activity Patterns
+// ----------------------------------------------------------------------------
+// Query: Track most active customers
+// Use case: Usage analytics and planning
+
+traces
+| where customDimensions.customer_id != ""
+| extend customer_id = toint(customDimensions.customer_id)
+| summarize
+    total_requests = count(),
+    functions_used = dcount(customDimensions.function),
+    first_seen = min(timestamp),
+    last_seen = max(timestamp)
+    by customer_id
+| order by total_requests desc
+| take 20
